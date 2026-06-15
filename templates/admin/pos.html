@@ -12,20 +12,12 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        .product-card {
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-        .product-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
-        }
-        .product-card:active {
-            transform: scale(0.97);
-        }
-        .cart-item-enter {
-            animation: slideIn 0.2s ease;
-        }
+        /* El header admin es position:fixed de 72px — el padding-top del CSS global lo compensa */
+
+        .product-card { transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer; }
+        .product-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.18) !important; }
+        .product-card:active { transform: scale(0.97); }
+        .cart-item-enter { animation: slideIn 0.2s ease; }
         @keyframes slideIn {
             from { opacity: 0; transform: translateX(20px); }
             to   { opacity: 1; transform: translateX(0); }
@@ -33,57 +25,58 @@
         .qty-btn {
             width: 28px; height: 28px;
             display: flex; align-items: center; justify-content: center;
-            border-radius: 6px;
-            font-weight: 700;
-            transition: background 0.1s;
+            border-radius: 6px; font-weight: 700; transition: background 0.1s;
         }
         #posSearchInput:focus { outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
         .payment-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
     </style>
 </head>
-<body class="bg-gray-100 admin-body" style="height:100vh; overflow:hidden;">
+<body class="admin-body" style="height:100vh;overflow:hidden;background:#f3f4f6;">
     {% include 'partials/navbar-admin.html' %}
 
-    <div class="flex" style="height: calc(100vh - 64px);">
+    <!-- El header es fixed de 72px; padding-top del CSS global lo compensa -->
+    <div style="height:calc(100vh - 72px);display:flex;overflow:hidden;">
 
         <!-- ══════════════════════════════ PANEL IZQUIERDO: PRODUCTOS ══════════════════════════════ -->
-        <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+        <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f9fafb;">
 
-            <!-- Barra superior -->
-            <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4 flex-shrink-0">
-                <div class="relative flex-1 max-w-lg">
-                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                    <input id="posSearchInput" type="text" placeholder="Buscar producto por nombre o marca..."
-                        class="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-gray-50 text-sm"
-                        oninput="filterProducts(this.value)">
+            <!-- Barra de búsqueda -->
+            <div style="background:white;border-bottom:1px solid #e5e7eb;padding:10px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+                <div style="position:relative;flex:1;max-width:520px;">
+                    <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none;"></i>
+                    <input id="posSearchInput" type="text" autocomplete="off"
+                        placeholder="Buscar por nombre o marca...  [/]"
+                        style="width:100%;padding:10px 36px 10px 34px;border:2px solid #d1d5db;border-radius:10px;background:white;font-size:14px;box-sizing:border-box;transition:border-color 0.15s;"
+                        oninput="onSearchInput(this.value)"
+                        onfocus="this.style.borderColor='#6366f1'"
+                        onblur="this.style.borderColor='#d1d5db'">
+                    <button id="posSearchClear" onclick="clearSearch()" title="Limpiar búsqueda [Esc]"
+                        style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#f3f4f6;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;color:#6b7280;font-size:11px;align-items:center;justify-content:center;line-height:1;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-500 font-medium">Categoría:</span>
-                    <select id="categoryFilter" onchange="filterProducts(document.getElementById('posSearchInput').value)"
-                        class="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50">
-                        <option value="">Todos</option>
-                        <option value="fragancia">Fragancias</option>
-                        <option value="decant">Decants</option>
-                        <option value="spray">Sprays</option>
-                    </select>
+                <div style="display:flex;gap:6px;">
+                    <button onclick="setCat('')"  id="cat-all"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #6366f1;background:#6366f1;color:white;cursor:pointer;transition:all 0.15s;">Todos</button>
+                    <button onclick="setCat('fragancia')" id="cat-fragancia" class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Fragancias</button>
+                    <button onclick="setCat('decant')"    id="cat-decant"    class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Decants</button>
+                    <button onclick="setCat('spray')"     id="cat-spray"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Sprays</button>
                 </div>
-                <div class="text-xs text-gray-400 whitespace-nowrap" id="productsCountLabel">Cargando...</div>
+                <span id="productsCountLabel" style="font-size:12px;color:#9ca3af;white-space:nowrap;margin-left:4px;">Cargando...</span>
             </div>
 
             <!-- Grid de productos -->
-            <div class="flex-1 overflow-y-auto p-4">
-                <div id="productsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                    <!-- Se llena dinámicamente -->
-                    <div class="col-span-full flex flex-col items-center py-16 text-gray-400">
-                        <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
-                        <p class="text-sm">Cargando productos...</p>
+            <div style="flex:1;overflow-y:auto;padding:16px;">
+                <div id="productsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;">
+                    <div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;padding:64px 0;color:#9ca3af;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:28px;margin-bottom:12px;"></i>
+                        <p style="font-size:14px;">Cargando productos...</p>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- ══════════════════════════════ PANEL DERECHO: CARRITO ══════════════════════════════ -->
-        <div class="w-80 bg-white border-l border-gray-200 flex flex-col flex-shrink-0 shadow-lg">
+        <div style="width:310px;background:white;border-left:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.06);" class="flex-shrink-0">
 
             <!-- Header carrito -->
             <div class="bg-gray-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
@@ -239,9 +232,11 @@
         let allProducts = [];
         let cart = [];       // [{productId, name, price, qty, image}]
         let posTotal = 0;
+        let currentCat = '';
+        let searchDebounceTimer = null;
 
-        // Placeholder local sin internet
-        const PLACEHOLDER_IMG = `data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect width=%22200%22 height=%22200%22 fill=%22%23f3f4f6%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2212%22 fill=%22%239ca3af%22%3ESin imagen%3C/text%3E%3C/svg%3E`;
+        // var (no const) para que sea accesible en atributos onerror del DOM
+        var PLACEHOLDER_IMG = `data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22200%22%3E%3Crect width=%22200%22 height=%22200%22 fill=%22%23e5e7eb%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2211%22 fill=%22%236b7280%22%3ESin imagen%3C/text%3E%3C/svg%3E`;
 
         // ─── Inicialización ──────────────────────────────────────────────
         document.addEventListener('DOMContentLoaded', () => {
@@ -263,6 +258,7 @@
                 products.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
                 allProducts = products;
                 renderProducts(allProducts);
+                document.getElementById('posSearchInput').focus();
             } catch (e) {
                 document.getElementById('productsGrid').innerHTML = `
                     <div class="col-span-full text-center py-16 text-red-400">
@@ -279,9 +275,9 @@
 
             if (products.length === 0) {
                 grid.innerHTML = `
-                    <div class="col-span-full flex flex-col items-center py-16 text-gray-400">
-                        <i class="fas fa-search text-3xl mb-3"></i>
-                        <p class="text-sm font-medium">Sin resultados</p>
+                    <div style="grid-column:1/-1;display:flex;flex-direction:column;align-items:center;padding:64px 0;color:#9ca3af;">
+                        <i class="fas fa-search" style="font-size:28px;margin-bottom:12px;"></i>
+                        <p style="font-size:14px;font-weight:600;">Sin resultados</p>
                     </div>`;
                 return;
             }
@@ -305,19 +301,30 @@
                 const displayBrand = escapeHTML(p.brand || p.marca || '');
                 const safeImg = escapeHTML(img);
                 
+                const cardStyle = [
+                    'background:white',
+                    'border:2px solid #d1d5db',
+                    'border-radius:12px',
+                    'overflow:hidden',
+                    'box-shadow:0 3px 10px rgba(0,0,0,0.12)',
+                    `cursor:${inStock ? 'pointer' : 'not-allowed'}`,
+                    `opacity:${inStock ? '1' : '0.55'}`
+                ].join(';');
+
                 return `
-                <div class="product-card bg-white rounded-xl border border-gray-100 overflow-hidden ${!inStock ? 'opacity-50' : ''}"
+                <div class="product-card" style="${cardStyle}"
                      onclick="${inStock ? `addToCart('${p.id}', decodeURIComponent('${safeName}'), ${price}, '${safeImg}')` : ''}">
-                    <div class="relative">
+                    <div style="height:130px;background:#e5e7eb;position:relative;overflow:hidden;">
                         <img src="${safeImg}" alt="${displayName}"
-                            class="w-full h-32 object-cover"
-                            onerror="this.src=PLACEHOLDER_IMG">
-                        ${!inStock ? '<div class="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center"><span class="text-xs font-bold text-red-500 bg-white px-2 py-1 rounded">Sin stock</span></div>' : ''}
+                            style="width:100%;height:100%;object-fit:cover;display:block;"
+                            onerror="this.onerror=null;this.src=PLACEHOLDER_IMG;">
+                        ${!inStock ? '<div style="position:absolute;inset:0;background:rgba(255,255,255,0.75);display:flex;align-items:center;justify-content:center;"><span style="font-size:11px;font-weight:700;color:#ef4444;background:white;border:1px solid #fca5a5;padding:3px 8px;border-radius:20px;">Sin stock</span></div>' : ''}
                     </div>
-                    <div class="p-2.5">
-                        <p class="text-xs font-bold text-gray-900 truncate leading-tight">${displayName}</p>
-                        <p class="text-[10px] text-gray-400 truncate">${displayBrand}</p>
-                        <p class="text-sm font-black text-gray-900 mt-1">$${price.toFixed(2)}</p>
+                    <div style="padding:9px 10px;">
+                        <p style="font-size:12px;font-weight:700;color:#111827;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3;">${displayName}</p>
+                        <p style="font-size:11px;color:#6b7280;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;">${displayBrand}</p>
+                        <p style="font-size:15px;font-weight:900;color:#4f46e5;margin-top:4px;">$${price.toFixed(2)}</p>
+                        ${p.stock !== undefined ? `<p style="font-size:10px;color:#9ca3af;margin-top:2px;">Stock: ${p.stock}</p>` : ''}
                     </div>
                 </div>`;
             }).join('');
@@ -328,30 +335,71 @@
             return String(text || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
         }
 
+        // ─── Buscador: input con debounce ───────────────────────────────
+        function onSearchInput(value) {
+            document.getElementById('posSearchClear').style.display = value ? 'flex' : 'none';
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => filterProducts(value), 220);
+        }
+
+        function clearSearch() {
+            const input = document.getElementById('posSearchInput');
+            input.value = '';
+            document.getElementById('posSearchClear').style.display = 'none';
+            filterProducts('');
+            input.focus();
+        }
+
+        // ─── Filtro de categoría con pills ───────────────────────────────
+        function setCat(cat) {
+            currentCat = cat;
+            ['all','fragancia','decant','spray'].forEach(id => {
+                const btn = document.getElementById('cat-' + id);
+                if (!btn) return;
+                const active = (cat === '' && id === 'all') || cat === id;
+                btn.style.background = active ? '#6366f1' : 'white';
+                btn.style.color      = active ? 'white'   : '#374151';
+                btn.style.borderColor = active ? '#6366f1' : '#d1d5db';
+            });
+            filterProducts(document.getElementById('posSearchInput').value);
+        }
+
+        // ─── Filtrar productos ───────────────────────────────────────────
         function filterProducts(query) {
-            const cat = document.getElementById('categoryFilter').value.toLowerCase();
+            const cat = currentCat;
             const searchTerms = normalizeText(query).split(' ').filter(t => t.trim().length > 0);
-            
+
             const filtered = allProducts.filter(p => {
                 const productText = normalizeText(p.name + ' ' + (p.brand || p.marca || ''));
-                
-                // Buscar que TODOS los términos ingresados existan en el texto del producto (Buscador Inteligente)
                 const matchText = searchTerms.length === 0 || searchTerms.every(term => productText.includes(term));
-                
+
                 const categoryStr = String(p.category || p.categoria || p.tipo || '').toLowerCase();
                 const isDecant = p.isDecant === true || categoryStr.includes('decant');
-                const isSpray = p.isSpray === true || categoryStr.includes('spray');
-                const isFragancia = !isDecant && !isSpray;
+                const isSpray  = p.isSpray  === true || categoryStr.includes('spray');
 
-                const matchCat = !cat || 
-                    (cat === 'decant' && isDecant) ||
-                    (cat === 'spray' && isSpray) ||
-                    (cat === 'fragancia' && isFragancia);
+                const matchCat = !cat ||
+                    (cat === 'decant'   && isDecant) ||
+                    (cat === 'spray'    && isSpray)  ||
+                    (cat === 'fragancia' && !isDecant && !isSpray);
 
                 return matchText && matchCat;
             });
             renderProducts(filtered);
         }
+
+        // ─── Atajos de teclado ───────────────────────────────────────────
+        document.addEventListener('keydown', e => {
+            const input = document.getElementById('posSearchInput');
+            if (!input) return;
+            if (e.key === '/' && document.activeElement !== input && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                input.focus();
+                input.select();
+            }
+            if (e.key === 'Escape' && document.activeElement === input) {
+                clearSearch();
+            }
+        });
 
         // ─── Agregar al carrito ──────────────────────────────────────────
         function addToCart(productId, name, price, image) {
@@ -400,8 +448,8 @@
                 div.className = 'cart-item cart-item-enter flex items-center gap-3 py-3 border-b border-gray-50 last:border-0';
                 div.innerHTML = `
                     <img src="${item.image}" alt="${item.name}"
-                        class="w-10 h-10 rounded-lg object-cover border border-gray-100 flex-shrink-0"
-                        onerror="this.onerror=null;this.src=PLACEHOLDER_IMG">
+                        class="w-10 h-10 rounded-lg object-cover border border-gray-200 bg-gray-100 flex-shrink-0"
+                        onerror="this.onerror=null;this.src=PLACEHOLDER_IMG;">
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-semibold text-gray-900 truncate">${item.name}</p>
                         <p class="text-xs text-gray-400">$${item.price.toFixed(2)} c/u</p>
@@ -536,7 +584,7 @@
                     change: Math.max(change, 0),
                     paymentMethod: 'cash',
                     status: 'entregado',
-                    channel: 'pos',  // indica que es venta en mostrador
+                    channel: 'pos',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     trackingHistory: [{
                         status: 'entregado',
@@ -546,6 +594,22 @@
                 };
 
                 await db.collection('orders').add(saleData);
+
+                // Reducir stock de cada producto vendido
+                const batch = db.batch();
+                for (const item of cart) {
+                    const productRef = db.collection('products').doc(item.productId);
+                    batch.update(productRef, {
+                        stock: firebase.firestore.FieldValue.increment(-item.qty)
+                    });
+                }
+                await batch.commit();
+
+                // Actualizar stock en memoria local para reflejar cambio sin recargar
+                for (const item of cart) {
+                    const p = allProducts.find(p => p.id === item.productId);
+                    if (p && p.stock !== undefined) p.stock -= item.qty;
+                }
 
                 // Llenar modal de éxito
                 const changeStr = `$${Math.max(change, 0).toFixed(2)}`;
@@ -580,6 +644,7 @@
             document.getElementById('successModal').classList.add('hidden');
             document.getElementById('successModal').classList.remove('flex');
             clearCart();
+            filterProducts(document.getElementById('posSearchInput').value || '');
         }
     </script>
 </body>
