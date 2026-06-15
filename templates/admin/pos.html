@@ -12,8 +12,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        /* El header admin es position:fixed de 72px — el padding-top del CSS global lo compensa */
-
+        /* El header admin es position:fixed de 72px */
         .product-card { transition: transform 0.15s ease, box-shadow 0.15s ease; cursor: pointer; }
         .product-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.18) !important; }
         .product-card:active { transform: scale(0.97); }
@@ -29,6 +28,58 @@
         }
         #posSearchInput:focus { outline: none; box-shadow: 0 0 0 3px rgba(99,102,241,0.3); }
         .payment-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(16,185,129,0.3); }
+
+        /* ── Overlay móvil ── */
+        #mobileOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.5); z-index: 490;
+        }
+        #mobileOverlay.active { display: block; }
+
+        /* ── FAB (botón flotante del carrito) – solo móvil ── */
+        #mobileFab {
+            display: none;
+            position: fixed; bottom: 20px; right: 16px; z-index: 480;
+            background: #16a34a; color: white; border: none; border-radius: 50px;
+            padding: 13px 18px; font-size: 15px; font-weight: 700;
+            cursor: pointer; align-items: center; gap: 8px;
+            box-shadow: 0 4px 18px rgba(22,163,74,0.45);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        #mobileFab:active { transform: scale(0.95); }
+        #mobileFab.fab-hidden { display: none !important; }
+
+        @media (max-width: 767px) {
+            /* Barra de búsqueda: apila en 2 filas */
+            #searchBar { flex-wrap: wrap; padding: 10px 12px; gap: 8px; }
+            #searchInputWrap { max-width: 100% !important; flex: 1 1 100%; }
+            #pillsRow {
+                flex: 1 1 100%; display: flex; gap: 6px;
+                overflow-x: auto; -webkit-overflow-scrolling: touch;
+                scrollbar-width: none; padding-bottom: 2px;
+            }
+            #pillsRow::-webkit-scrollbar { display: none; }
+            #productsCountLabel { display: none; }
+
+            /* Grid: 2 columnas en móvil */
+            #productsGrid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+
+            /* Carrito: bottom sheet */
+            #posCartPanel {
+                position: fixed !important;
+                bottom: 0; left: 0; right: 0; top: auto !important;
+                width: 100% !important; max-height: 78vh;
+                border-radius: 20px 20px 0 0;
+                z-index: 500;
+                box-shadow: 0 -4px 24px rgba(0,0,0,0.2);
+                transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            }
+            #posCartPanel.mobile-open { transform: translateY(0); }
+            #mobileCartClose { display: flex !important; }
+            #cartHandle { display: flex !important; }
+            #mobileFab { display: flex; }
+        }
     </style>
 </head>
 <body class="admin-body" style="height:100vh;overflow:hidden;background:#f3f4f6;">
@@ -41,8 +92,8 @@
         <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:#f9fafb;">
 
             <!-- Barra de búsqueda -->
-            <div style="background:white;border-bottom:1px solid #e5e7eb;padding:10px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
-                <div style="position:relative;flex:1;max-width:520px;">
+            <div id="searchBar" style="background:white;border-bottom:1px solid #e5e7eb;padding:10px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
+                <div id="searchInputWrap" style="position:relative;flex:1;max-width:520px;">
                     <i class="fas fa-search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:13px;pointer-events:none;"></i>
                     <input id="posSearchInput" type="text" autocomplete="off"
                         placeholder="Buscar por nombre o marca...  [/]"
@@ -55,11 +106,11 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <div style="display:flex;gap:6px;">
-                    <button onclick="setCat('')"  id="cat-all"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #6366f1;background:#6366f1;color:white;cursor:pointer;transition:all 0.15s;">Todos</button>
-                    <button onclick="setCat('fragancia')" id="cat-fragancia" class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Fragancias</button>
-                    <button onclick="setCat('decant')"    id="cat-decant"    class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Decants</button>
-                    <button onclick="setCat('spray')"     id="cat-spray"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;transition:all 0.15s;">Sprays</button>
+                <div id="pillsRow" style="display:flex;gap:6px;">
+                    <button onclick="setCat('')"  id="cat-all"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #6366f1;background:#6366f1;color:white;cursor:pointer;white-space:nowrap;transition:all 0.15s;">Todos</button>
+                    <button onclick="setCat('fragancia')" id="cat-fragancia" class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;white-space:nowrap;transition:all 0.15s;">Fragancias</button>
+                    <button onclick="setCat('decant')"    id="cat-decant"    class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;white-space:nowrap;transition:all 0.15s;">Decants</button>
+                    <button onclick="setCat('spray')"     id="cat-spray"     class="cat-pill" style="padding:7px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;background:white;color:#374151;cursor:pointer;white-space:nowrap;transition:all 0.15s;">Sprays</button>
                 </div>
                 <span id="productsCountLabel" style="font-size:12px;color:#9ca3af;white-space:nowrap;margin-left:4px;">Cargando...</span>
             </div>
@@ -76,16 +127,25 @@
         </div>
 
         <!-- ══════════════════════════════ PANEL DERECHO: CARRITO ══════════════════════════════ -->
-        <div style="width:310px;background:white;border-left:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.06);" class="flex-shrink-0">
+        <div id="posCartPanel" style="width:310px;background:white;border-left:1px solid #e5e7eb;display:flex;flex-direction:column;flex-shrink:0;box-shadow:-2px 0 8px rgba(0,0,0,0.06);">
+
+            <!-- Handle drag (solo visible en móvil) -->
+            <div id="cartHandle" style="display:none;justify-content:center;padding:10px 0 4px;cursor:pointer;" onclick="closeMobileCart()">
+                <div style="width:40px;height:4px;background:#d1d5db;border-radius:4px;"></div>
+            </div>
 
             <!-- Header carrito -->
-            <div class="bg-gray-900 text-white px-5 py-4 flex items-center justify-between flex-shrink-0">
-                <div class="flex items-center gap-2">
+            <div style="background:#111827;color:white;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button id="mobileCartClose" onclick="closeMobileCart()"
+                        style="display:none;background:none;border:none;color:#9ca3af;cursor:pointer;font-size:18px;padding:0;margin-right:2px;line-height:1;">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
                     <i class="fas fa-receipt"></i>
-                    <span class="font-bold text-base">Venta Actual</span>
+                    <span style="font-weight:700;font-size:15px;">Venta Actual</span>
                 </div>
                 <button onclick="clearCart()" title="Vaciar carrito"
-                    class="text-gray-400 hover:text-red-400 transition text-sm">
+                    style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:13px;padding:4px;">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
@@ -127,6 +187,16 @@
             </div>
         </div>
     </div>
+
+    <!-- ══════════════════════════════ OVERLAY + FAB MÓVIL ══════════════════════════════ -->
+    <div id="mobileOverlay" onclick="closeMobileCart()"></div>
+
+    <button id="mobileFab" class="fab-hidden" onclick="openMobileCart()">
+        <i class="fas fa-shopping-bag"></i>
+        <span id="mobileFabCount" style="background:white;color:#16a34a;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">0</span>
+        <span id="mobileFabTotal">$0.00</span>
+        <i class="fas fa-chevron-up" style="font-size:11px;opacity:0.8;"></i>
+    </button>
 
     <!-- ══════════════════════════════ MODAL DE COBRO ══════════════════════════════ -->
     <div id="paymentModal" class="fixed inset-0 hidden items-center justify-center" style="z-index: 99999; background: rgba(0,0,0,0.65);">
@@ -475,14 +545,34 @@
             document.getElementById('posSubtotal').textContent = `$${subtotal.toFixed(2)}`;
             document.getElementById('posTotal').textContent = `$${subtotal.toFixed(2)}`;
             document.getElementById('posItemCount').textContent = count;
+            document.getElementById('btnCobrar').disabled = cart.length === 0;
 
-            const btn = document.getElementById('btnCobrar');
-            btn.disabled = cart.length === 0;
+            // FAB móvil
+            const fab = document.getElementById('mobileFab');
+            if (cart.length === 0) {
+                fab.classList.add('fab-hidden');
+            } else {
+                fab.classList.remove('fab-hidden');
+                document.getElementById('mobileFabCount').textContent = count;
+                document.getElementById('mobileFabTotal').textContent = `$${subtotal.toFixed(2)}`;
+            }
+        }
+
+        // ─── Carrito móvil (bottom sheet) ────────────────────────────────
+        function openMobileCart() {
+            document.getElementById('posCartPanel').classList.add('mobile-open');
+            document.getElementById('mobileOverlay').classList.add('active');
+        }
+
+        function closeMobileCart() {
+            document.getElementById('posCartPanel').classList.remove('mobile-open');
+            document.getElementById('mobileOverlay').classList.remove('active');
         }
 
         // ─── Vaciar carrito ──────────────────────────────────────────────
         function clearCart() {
             cart = [];
+            closeMobileCart();
             renderCart();
         }
 
